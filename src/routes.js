@@ -4,6 +4,8 @@ import { Router } from 'express';
 import UserController from './app/controllers/UserController';
 import SessionController from './app/controllers/SessionController';
 import RecipientController from './app/controllers/RecipientController';
+import DelivererController from './app/controllers/DelivererController';
+import OrderController from './app/controllers/OrderController';
 
 // Middlewares
 import authMiddleware from './app/middlewares/auth';
@@ -19,5 +21,11 @@ routes.use(authMiddleware);
 routes.put('/users', UserController.update);
 routes.post('/recipients', RecipientController.store);
 routes.post('/deliverers', DelivererController.store);
+
+routes.put('/deliverers/:id', DelivererController.update);
+
+routes.post('/orders', OrderController.store);
+routes.put('/orders/:id', OrderController.update);
+routes.delete('/orders/:id', OrderController.delete);
 
 export default routes;

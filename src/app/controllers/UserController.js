@@ -47,6 +47,8 @@ class UserController {
   async update(req, res) {
     // Schema de verificação de input usando Yup
     const schema = Yup.object().shape({
+      first_name: Yup.string(),
+      last_name: Yup.string(),
       email: Yup.string().email(),
       oldPassword: Yup.string(),
       // "when" como condicional que exige password caso oldpassword tenha sido passado
@@ -62,8 +64,11 @@ class UserController {
     });
 
     // Teste que verifica se o req.body está dentro das regras criadas no schema
-    if (!(await schema.isValid(req.body))) {
-      return res.status(400).json({ error: 'Validation error' });
+    const schemaVerify = await schema.validate(req.body).catch(err => {
+      return err.message;
+    });
+    if (typeof schemaVerify === 'string') {
+      return res.status(400).json({ error: schemaVerify });
     }
 
     const { email, oldPassword } = req.body;
@@ -83,15 +88,11 @@ class UserController {
       return res.status(401).json({ error: 'Wrong Password' });
     }
 
-    const { id, name, provider } = await user.update(req.body);
+    const { id, name, provider, first_name, last_name } = await user.update(
+      req.body
+    );
 
-    if (userExists) {
-      return res
-        .status(400)
-        .json({ error: 'User already exists.' })
-        .include('variableextend');
-    }
-    return res.json({ id, name, email, provider });
+    return res.json({ id, name, email, provider, first_name, last_name });
   }
 }
 

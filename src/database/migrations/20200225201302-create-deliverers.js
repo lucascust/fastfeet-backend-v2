@@ -1,6 +1,6 @@
 module.exports = {
   up: (queryInterface, Sequelize) => {
-    return queryInterface.createTable('users', {
+    return queryInterface.createTable('deliverers', {
       id: {
         type: Sequelize.INTEGER,
         allowNull: false,
@@ -22,7 +22,6 @@ module.exports = {
       },
       avatar_id: {
         type: Sequelize.STRING,
-        allowNull: false,
         unique: true,
       },
       // Atributos importantes para gerenciamento dos usuários (data de criação/atualização)
@@ -38,6 +37,6 @@ module.exports = {
   },
 
   down: queryInterface => {
-    return queryInterface.dropTable('users');
+    return queryInterface.dropTable('deliverers');
   },
 };
