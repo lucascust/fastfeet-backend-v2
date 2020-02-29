@@ -1,11 +1,52 @@
 import * as Yup from 'yup';
-import { getHours } from 'date-fns';
+import { getHours, format } from 'date-fns';
+import pt from 'date-fns/locale/pt-BR';
+import { Op } from 'sequelize';
 
 import Order from '../models/Order';
 import Recipient from '../models/Recipient';
 import Deliverer from '../models/Deliverer';
 
+import Mail from '../../lib/Mail';
+
 class OrderController {
+  async index(req, res) {
+    const { page = 1, option = '0' } = req.query;
+
+    /**
+     * Order search options:
+     * 0 : Not canceled and not started
+     * 1 : Already started and not finished
+     * 2 : Already finished
+     * 3 : Canceled
+     */
+    const order = await Order.findAll({
+      where: {
+        canceled_at: option === '3' ? { [Op.not]: null } : null,
+        started: option === '1' || option === '2' ? { [Op.not]: null } : null,
+        ended: option === '2' ? { [Op.not]: null } : null,
+      },
+      order: ['created_at'],
+      attributes: ['id', 'product'],
+      limit: 20,
+      offset: (page - 1) * 20,
+      include: [
+        {
+          model: Recipient,
+          as: 'recipient',
+          attributes: ['id', 'name'],
+        },
+        {
+          model: Deliverer,
+          as: 'deliverer',
+          attributes: ['id', 'first_name', 'last_name'],
+        },
+      ],
+    });
+
+    return res.json(order);
+  }
+
   async store(req, res) {
     const schema = Yup.object().shape({
       product: Yup.string().max(150),
@@ -80,12 +121,12 @@ class OrderController {
      * Time range: 8h -> 18h
      */
     if (started) {
-      if (dateHour < 8 || dateHour > 18) {
+      if (dateHour < 8 || dateHour > 22) {
         return res
           .status(401)
           .json({ error: 'You can only start order between 8 and 18 hours' });
       }
-      await order.update({ start_date: date });
+      await order.update({ start_date: date, started });
       return res.json({ start_date: order.start_date, started });
     }
 
@@ -110,7 +151,20 @@ class OrderController {
   async delete(req, res) {
     const { id } = req.params;
 
-    const order = await Order.findByPk(id);
+    const order = await Order.findByPk(id, {
+      include: [
+        {
+          model: Deliverer,
+          as: 'deliverer',
+          attributes: ['first_name', 'last_name', 'email'],
+        },
+        {
+          model: Recipient,
+          as: 'recipient',
+          attributes: ['name'],
+        },
+      ],
+    });
 
     /**
      * Verify if it's cancelable
@@ -123,7 +177,30 @@ class OrderController {
     }
     const { canceled_at } = await order.update({ canceled_at: new Date() });
 
-    return res.json({ canceled_at });
+    await order.save();
+
+    const cancellationDate = await format(
+      canceled_at,
+      "'dia' dd 'de' MMMM', às' H:mm'h'",
+      {
+        locale: pt,
+      }
+    );
+
+    await Mail.sendMail({
+      to: `${order.deliverer.first_name} <${order.deliverer.email}>`,
+      subject: 'Agendamento Cancelado',
+      template: 'cancellation',
+      context: {
+        deliverer: order.deliverer.first_name,
+        recipient: order.recipient.name,
+        date: cancellationDate,
+        product: order.product,
+        quantity: order.quantity,
+      },
+    });
+
+    return res.json({ cancellationDate });
   }
 }
 export default new OrderController();
