@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import multer from 'multer';
+import multerConfig from './config/multer';
 
 // Controllers
 import UserController from './app/controllers/UserController';
@@ -11,8 +13,10 @@ import OrderController from './app/controllers/OrderController';
 import authMiddleware from './app/middlewares/auth';
 
 const routes = new Router();
+const upload = multer(multerConfig);
 
 routes.post('/users', UserController.store);
+
 routes.post('/sessions', SessionController.store);
 
 routes.use(authMiddleware);
@@ -26,7 +30,11 @@ routes.put('/deliverers/:id', DelivererController.update);
 
 routes.get('/orders/', OrderController.index);
 routes.post('/orders', OrderController.store);
-routes.put('/orders/:id', OrderController.update);
+routes.put(
+  '/orders/:id',
+  upload.single('signatureImg'),
+  OrderController.update
+);
 routes.delete('/orders/:id', OrderController.delete);
 
 export default routes;

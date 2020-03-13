@@ -139,7 +139,12 @@ class OrderController {
           .status(401)
           .json({ error: 'You can not finish an order that have not started' });
       }
-      await order.update({ end_date: date });
+      if (order.ended === true) {
+        return res.status(401).json({ error: 'Order already finished' });
+      }
+
+      await order.update({ end_date: date, ended });
+
       return res.json({ end_date: order.end_date, ended });
     }
 
